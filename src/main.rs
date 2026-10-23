@@ -1,6 +1,6 @@
-use clap::{Parser, Subcommand};
-use lit::{commands::init_command, managers::config_manager};
-use std::path::PathBuf;
+use clap::Parser;
+use lit::{command_enum, commands::init, managers::config};
+use tracing::info;
 
 /// Local Information Tracker
 #[derive(Parser)]
@@ -11,59 +11,50 @@ struct Cli {
     debug: bool,
 
     #[command(subcommand)]
-    command: Commands,
+    command: command_enum::Commands,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Initialize a new project in currect directory
-    Init {
-        #[arg(short, long, value_name = "DIR", default_value = ".")]
-        path: PathBuf,
-    },
+fn init_logging(debug_mode: bool) {
+    let level = if debug_mode {
+        tracing::Level::DEBUG
+    } else {
+        tracing::Level::WARN
+    };
 
-    /// Push local changes to the remote instance
-    Push,
-
-    /// Config
-    Config {
-        #[command(subcommand)]
-        command: CommandsConfig,
-    },
-}
-
-#[derive(Subcommand)]
-enum CommandsConfig {
-    /// Loading config or Generating a default config and loading
-    Load,
-
-    /// Changing settings in the config file
-    Change,
+    tracing_subscriber::fmt()
+        .with_max_level(level)
+        .with_target(false)
+        .init();
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    if cli.debug {
-        println!("debug");
-    }
+    init_logging(cli.debug);
 
     match &cli.command {
-        Commands::Init { path } => {
-            init_command::run(path.clone());
+        command_enum::Commands::Init { path } => {
+            init::run(path.clone());
+            info!("Command Init executed successfully");
         }
-        Commands::Push => {
+        command_enum::Commands::Push => {
             println!("Push...");
         }
-        Commands::Config { command } => {
+        command_enum::Commands::Config { command } => {
             match command {
-                CommandsConfig::Load => {
-                    config_manager::load_config();
+                command_enum::CommandsConfig::Load => {
+                    config::load_config();
                 }
 
-                CommandsConfig::Change => {}
+                command_enum::CommandsConfig::Change(args) => {
+                    let mut current_config = config::load_config();
+
+                    current_config.update_from_args(&args.new_values);
+
+                    config::save_config(&current_config);
+                }
             }
-            println!("Config...")
+            info!("Command Config executed successfully");
         }
     }
 }
