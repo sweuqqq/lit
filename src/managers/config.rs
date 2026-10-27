@@ -1,27 +1,37 @@
-use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::fs;
 use tracing::info;
 
-#[derive(Serialize, Deserialize, clap::Args, Debug, Clone)]
-pub struct Config {
-    #[arg(long)]
-    pub key: Option<String>,
+use crate::{models::config::Model, utils::path};
 
-    #[arg(long)]
-    pub username: Option<String>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            key: Some("".to_string()),
-            username: Some("User".to_string()),
+impl Model {
+    pub fn load() -> Model {
+        if let Some(path) = path::get_config_path() {
+            if path.exists() {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(config) = toml::from_str::<Model>(&content) {
+                        info!("Successfully loaded the config");
+                        return config;
+                    }
+                }
+            }
         }
-    }
-}
+        info!("Loading default settings");
 
-impl Config {
-    pub fn update_from_args(&mut self, args: &Config) {
+        let default_config = Model::default();
+        Self::save(&default_config);
+        default_config
+    }
+
+    pub fn save(config: &Model) {
+        if let Some(path) = path::get_config_path() {
+            if let Ok(toml_string) = toml::to_string_pretty(config) {
+                let _ = fs::write(path, toml_string);
+            }
+        }
+        info!("Successfully saved the config");
+    }
+
+    pub fn update_args(&mut self, args: &Model) {
         if let Some(ref k) = args.key {
             self.key = Some(k.clone());
             info!("Value of Key has changed")
@@ -31,42 +41,4 @@ impl Config {
             info!("Value of Username has changed")
         }
     }
-}
-
-fn get_config_path() -> Option<PathBuf> {
-    let mut path = dirs::config_dir()?;
-
-    path.push("lit");
-    fs::create_dir_all(&path).ok()?;
-    path.push("config.toml");
-
-    info!("Config path: {}", path.display());
-    Some(path)
-}
-
-pub fn load_config() -> Config {
-    if let Some(path) = get_config_path() {
-        if path.exists() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(config) = toml::from_str::<Config>(&content) {
-                    info!("Successfully loaded the config");
-                    return config;
-                }
-            }
-        }
-    }
-    info!("Loading default settings");
-
-    let default_config = Config::default();
-    save_config(&default_config);
-    default_config
-}
-
-pub fn save_config(config: &Config) {
-    if let Some(path) = get_config_path() {
-        if let Ok(toml_string) = toml::to_string_pretty(config) {
-            let _ = fs::write(path, toml_string);
-        }
-    }
-    info!("Successfully saved the config");
 }

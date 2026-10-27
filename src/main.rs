@@ -1,18 +1,12 @@
 use clap::Parser;
-use lit::{command_enum, commands::init, managers::config};
+use lit::{
+    commands::init,
+    models::{
+        cli::{self, Cli},
+        config::Model,
+    },
+};
 use tracing::info;
-
-/// Local Information Tracker
-#[derive(Parser)]
-#[command(version)]
-struct Cli {
-    /// Debug mode
-    #[arg(short, long)]
-    debug: bool,
-
-    #[command(subcommand)]
-    command: command_enum::Commands,
-}
 
 fn init_logging(debug_mode: bool) {
     let level = if debug_mode {
@@ -33,25 +27,25 @@ fn main() {
     init_logging(cli.debug);
 
     match &cli.command {
-        command_enum::Commands::Init { path } => {
+        cli::Commands::Init { path } => {
             init::run(path.clone());
             info!("Command Init executed successfully");
         }
-        command_enum::Commands::Push => {
+        cli::Commands::Push => {
             println!("Push...");
         }
-        command_enum::Commands::Config { command } => {
+        cli::Commands::Config { command } => {
             match command {
-                command_enum::CommandsConfig::Load => {
-                    config::load_config();
+                cli::CommandsConfig::Load => {
+                    Model::load();
                 }
 
-                command_enum::CommandsConfig::Change(args) => {
-                    let mut current_config = config::load_config();
+                cli::CommandsConfig::Change(args) => {
+                    let mut current_config = Model::load();
 
-                    current_config.update_from_args(&args.new_values);
+                    current_config.update_args(&args.new_values);
 
-                    config::save_config(&current_config);
+                    Model::save(&current_config);
                 }
             }
             info!("Command Config executed successfully");

@@ -1,7 +1,19 @@
-use clap::{Args, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
-use crate::managers;
+use crate::models::config::Model;
+
+/// Local Information Tracker
+#[derive(Parser)]
+#[command(version)]
+pub struct Cli {
+    /// Debug mode
+    #[arg(short, long)]
+    pub debug: bool,
+
+    #[command(subcommand)]
+    pub command: Commands,
+}
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -13,6 +25,9 @@ pub enum Commands {
 
     /// Push local changes to the remote instance
     Push,
+
+    /// Adding files and directories to the watchlist
+    //Watchlist,
 
     /// Working with a configuration file
     Config {
@@ -33,5 +48,5 @@ pub enum CommandsConfig {
 #[derive(Args, Debug)]
 pub struct ConfigChanges {
     #[command(flatten)]
-    pub new_values: managers::config::Config,
+    pub new_values: Model,
 }
